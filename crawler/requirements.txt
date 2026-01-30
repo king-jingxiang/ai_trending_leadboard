@@ -1,0 +1,8 @@
+requests
+beautifulsoup4
+boto3
+google-genai
+PyGitHub
+python-dotenv
+gtrending
+tenacity

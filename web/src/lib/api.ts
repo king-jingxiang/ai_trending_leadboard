@@ -1,0 +1,73 @@
+import type { Repo, TimeRange } from '../types';
+
+const BASE_URL = import.meta.env.VITE_DATA_URL || 'https://pub-f31a5865021b44d0a2c4003b3da37f04.r2.dev';
+
+// Mock Data for development
+const MOCK_REPOS: Repo[] = [
+  {
+    owner: "sig-networks",
+    repo: "not-a-real-repo",
+    description: "An awesome AI agent framework that does everything.",
+    language: "Python",
+    stars: 12500,
+    forks: 1200,
+    growth: 450,
+    tags: ["Agent Framework", "LLM"],
+    star_history: [
+      { date: "2023-10-01", count: 100 },
+      { date: "2023-11-01", count: 500 },
+      { date: "2023-12-01", count: 2000 },
+      { date: "2024-01-01", count: 8000 },
+      { date: "2024-01-30", count: 12500 },
+    ]
+  },
+  {
+    owner: "tensor-flow-x",
+    repo: "super-fast-inference",
+    description: "Inference engine optimized for everything.",
+    language: "C++",
+    stars: 8900,
+    forks: 800,
+    growth: 120,
+    tags: ["Inference & Serving", "Quantization"],
+    star_history: [
+      { date: "2023-12-01", count: 1000 },
+      { date: "2024-01-01", count: 5000 },
+      { date: "2024-01-30", count: 8900 },
+    ]
+  }
+];
+
+export async function fetchTrending(range: TimeRange): Promise<Repo[]> {
+  try {
+    console.log(`Fetching trending for range: ${range}`); // Use variable
+    const today = new Date().toISOString().split('T')[0];
+    const response = await fetch(`${BASE_URL}/data/daily/${today}.json`);
+    if (!response.ok) throw new Error("Failed to fetch");
+    return await response.json();
+  } catch (e) {
+    console.warn("Using mock data", e);
+    return MOCK_REPOS;
+  }
+}
+
+export async function fetchRepoDetails(owner: string, repo: string): Promise<Repo | null> {
+  try {
+    const response = await fetch(`${BASE_URL}/data/projects/${owner}/${repo}.json`);
+    if (!response.ok) throw new Error("Failed to fetch");
+    return await response.json();
+  } catch (e) {
+    console.warn("Using mock data for details", e);
+    return MOCK_REPOS.find(r => r.owner === owner && r.repo === repo) || MOCK_REPOS[0];
+  }
+}
+
+export async function fetchAllRepos(): Promise<Repo[]> {
+  try {
+    const response = await fetch(`${BASE_URL}/data/index.json`);
+    if (!response.ok) throw new Error("Failed to fetch index");
+    return await response.json();
+  } catch {
+    return MOCK_REPOS;
+  }
+}

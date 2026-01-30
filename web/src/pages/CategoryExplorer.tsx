@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { RepoCard } from '../components/RepoCard';
 import { fetchTrending } from '../lib/api';
 import type { Repo } from '../types';
 import clsx from 'clsx';
 
 type SortMode = 'composite' | 'trend' | 'stars';
+type FilterMode = 'tag' | 'topic';
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
   { value: 'composite', label: '综合排序' },
@@ -39,12 +40,11 @@ const TAG_DEFINITIONS: Record<string, string> = {
   "Middleware": "中间件、应用开发框架（Streamlit/Gradio）、搜索引擎（ES）等基础设施",
 };
 
-const CATEGORIES = ["All", ...Object.keys(TAG_DEFINITIONS)];
-
 export const CategoryExplorer: React.FC = () => {
   const [repos, setRepos] = useState<Repo[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortMode, setSortMode] = useState<SortMode>('composite');
+  const [filterMode, setFilterMode] = useState<FilterMode>('tag');
   const mainContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,12 +55,49 @@ export const CategoryExplorer: React.FC = () => {
     mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [selectedCategory]);
 
+  const handleFilterModeChange = (mode: FilterMode) => {
+    setFilterMode(mode);
+    setSelectedCategory("All");
+  };
+
+  const tagCategories = useMemo(() => {
+    const counts = new Map<string, number>();
+    repos.forEach((repo) => {
+      repo.tags.forEach((tag) => {
+        const normalized = tag.trim();
+        if (!normalized) return;
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      });
+    });
+    const ordered = Object.keys(TAG_DEFINITIONS)
+      .map((name) => ({ name, count: counts.get(name) || 0 }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+      .map((item) => item.name);
+    return ["All", ...ordered];
+  }, [repos]);
+
+  const topicCategories = useMemo(() => {
+    const counts = new Map<string, number>();
+    repos.forEach((repo) => {
+      (repo.topics || []).forEach((topic) => {
+        const normalized = topic.trim();
+        if (!normalized) return;
+        counts.set(normalized, (counts.get(normalized) || 0) + 1);
+      });
+    });
+    const ordered = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name]) => name);
+    return ["All", ...ordered];
+  }, [repos]);
+
   const normalizedCategory = selectedCategory.trim().toLowerCase();
   const filteredRepos = selectedCategory === "All"
     ? repos
-    : repos.filter(repo =>
-        repo.tags.some(tag => tag.trim().toLowerCase() === normalizedCategory)
-      );
+    : repos.filter(repo => {
+        const list = filterMode === 'tag' ? repo.tags : (repo.topics || []);
+        return list.some(item => item.trim().toLowerCase() === normalizedCategory);
+      });
 
   const parseUpdatedAt = (repo: Repo) => {
     if (!repo.last_seen) return 0;
@@ -97,15 +134,45 @@ export const CategoryExplorer: React.FC = () => {
       {/* Sidebar */}
       <div className="w-full md:w-64 flex-shrink-0">
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto">
-          <h3 className="font-semibold text-gray-900 mb-4 px-2">Categories</h3>
-          <div className="flex flex-wrap md:flex-col gap-1">
-            {CATEGORIES.map(category => (
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => handleFilterModeChange('tag')}
+              className={clsx(
+                "px-3 py-1.5 text-sm rounded-md transition-colors border",
+                filterMode === 'tag'
+                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                  : "text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+              )}
+            >
+              Tag
+            </button>
+            <button
+              onClick={() => handleFilterModeChange('topic')}
+              className={clsx(
+                "px-3 py-1.5 text-sm rounded-md transition-colors border",
+                filterMode === 'topic'
+                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                  : "text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+              )}
+            >
+              Topic
+            </button>
+          </div>
+          <h3 className="font-semibold text-gray-900 mb-4 px-2">
+            {filterMode === 'tag' ? 'Tags' : 'Topics'}
+          </h3>
+          <div className="flex flex-wrap gap-1.5">
+            {(filterMode === 'tag' ? tagCategories : topicCategories).map(category => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                title={category !== "All" ? TAG_DEFINITIONS[category] : "显示全部类别"}
+                title={
+                  filterMode === 'tag'
+                    ? (category !== "All" ? TAG_DEFINITIONS[category] : "显示全部类别")
+                    : (category !== "All" ? `Topic: ${category}` : "显示全部 Topic")
+                }
                 className={clsx(
-                  "px-3 py-2 rounded-lg text-sm text-left transition-colors",
+                  "px-2 py-1 rounded-md text-xs text-left transition-colors",
                   selectedCategory === category
                     ? "bg-indigo-50 text-indigo-700 font-medium"
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -124,12 +191,16 @@ export const CategoryExplorer: React.FC = () => {
           <div>
             <h1
               className="text-2xl font-bold text-gray-900"
-              title={selectedCategory !== "All" ? TAG_DEFINITIONS[selectedCategory] : "显示全部类别"}
+              title={
+                filterMode === 'tag'
+                  ? (selectedCategory !== "All" ? TAG_DEFINITIONS[selectedCategory] : "显示全部类别")
+                  : (selectedCategory !== "All" ? `Topic: ${selectedCategory}` : "显示全部 Topic")
+              }
             >
               {selectedCategory}
             </h1>
             <p className="text-gray-500 mt-1">
-              Found {filteredRepos.length} repositories
+              Found {filteredRepos.length} repositories · {filterMode === 'tag' ? 'Tag' : 'Topic'} 视图
             </p>
           </div>
           <div className="bg-white p-1 rounded-lg border border-gray-200 inline-flex">

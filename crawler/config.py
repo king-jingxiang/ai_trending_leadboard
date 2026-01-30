@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Config:
-    GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+    GITHUB_TOKEN = os.getenv("GITHUB_TOKEN") or os.getenv("MY_GITHUB_TOKEN")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     
     # S3 / R2 Configuration

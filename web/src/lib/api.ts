@@ -13,6 +13,7 @@ const MOCK_REPOS: Repo[] = [
     forks: 1200,
     growth: 450,
     tags: ["Agent Framework", "LLM"],
+    topics: ["agent-framework", "multi-agent", "llm"],
     star_history: [
       { date: "2023-10-01", count: 100 },
       { date: "2023-11-01", count: 500 },
@@ -30,6 +31,7 @@ const MOCK_REPOS: Repo[] = [
     forks: 800,
     growth: 120,
     tags: ["Inference & Serving", "Quantization"],
+    topics: ["inference", "serving", "quantization"],
     star_history: [
       { date: "2023-12-01", count: 1000 },
       { date: "2024-01-01", count: 5000 },
